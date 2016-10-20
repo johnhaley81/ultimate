@@ -91,6 +91,13 @@ public class CsvProviderPartition<T> {
 	}
 	
 	/**
+	 * @return The number of CSVs in the partition.
+	 */
+	public int size() {
+		return mCsvs.size();
+	}
+	
+	/**
 	 * @return a single CSV provider containing all groups from the partition.
 	 */
 	public ICsvProvider<T> toCsvProvider() {
@@ -192,18 +199,18 @@ public class CsvProviderPartition<T> {
 				result.add(group);
 				if (thresholds == null) {
 					key2group.put(entry, group);
-					rowTitle = null;
+					rowTitle = entry.toString();
 				} else {
 					bin2group.put(bin, group);
-					rowTitle = bin == 0
-							? ("* < " + thresholds[bin])
-							: (bin == thresholds.length
-									? ("* > " + thresholds[thresholds.length - 1])
-									: (thresholds[bin - 1] + " < * < " + thresholds[bin]));
+					final String lower = bin == 0 ? "-\\infty" : Integer.toString(thresholds[bin - 1]);
+					final String upper = bin == thresholds.length ? "\\infty" : Integer.toString(thresholds[bin]);
+					rowTitle = "$n \\in [" + lower + "; " + upper + "]$";
 				}
 			} else {
 				final List<String> rowHeaders = group.getRowHeaders();
-				rowTitle = rowHeaders.isEmpty() ? null : rowHeaders.get(0);
+				rowTitle = rowHeaders.isEmpty()
+						? entry.toString()
+						: (rowHeaders.get(0) == null ? entry.toString() : rowHeaders.get(0));
 			}
 			group.addRow(rowTitle, new ArrayList<>(row));
 		}

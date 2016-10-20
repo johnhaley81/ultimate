@@ -19,6 +19,7 @@ import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderAggregator.Aggreg
 import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderColumnFilter;
 import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderFromFile;
 import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderPartition;
+import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderRounding;
 import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderRowFilter;
 import de.uni_freiburg.informatik.ultimate.util.csv.CsvProviderTransformerCombinator;
 import de.uni_freiburg.informatik.ultimate.util.csv.ICsvProvider;
@@ -38,7 +39,9 @@ public final class PrepareOfflineCsv {
 	private static final String OUTPUT_FULL_FILE_NAME = "AutomizerOfflineFull";
 	private static final String OUTPUT_PARTITIONED_FILE_NAME = "AutomizerOfflinePartitioned";
 	private static final String OUTPUT_AGGREGATED_FILE_NAME = "AutomizerOfflineAggregated";
-	private static final boolean VERBOSE = true;
+	private static final String COUNT = "Count";
+	private static final int[] THRESHOLDS = new int[] { 100, 500, 2500 };
+	private static final boolean VERBOSE = false;
 	
 	private static final String TRANSITIONS_RETURN_OUTPUT = "TRANSITIONS_RETURN_OUTPUT";
 	private static final String TRANSITIONS_RETURN_INPUT = "TRANSITIONS_RETURN_INPUT";
@@ -88,19 +91,31 @@ public final class PrepareOfflineCsv {
 		
 		// separated tables
 		final String statesColumn = STATES_INPUT;
-		final int[] thresholds = new int[] { 100, 500, 2500 };
-		final CsvProviderPartition<String> partition = new CsvProviderPartition<>(fullTable, statesColumn, thresholds);
+		final CsvProviderPartition<String> partition = new CsvProviderPartition<>(fullTable, statesColumn, THRESHOLDS);
 		final CsvProviderAggregator<String> csvProviderAggregator = getStatesAggregation();
+		final CsvProviderRounding<String> csvProviderRound = getRounding();
 		int i = 0;
+		final List<ICsvProvider<String>> aggregatedCsvs = new ArrayList<>();
 		for (final ICsvProvider<String> csv : partition.getCsvs()) {
-			writeCsvToFile(csv, OUTPUT_PARTITIONED_FILE_NAME);
+			writeCsvToFile(csv, OUTPUT_PARTITIONED_FILE_NAME + i);
 			
 			// aggregate
 			final ICsvProvider<String> aggregatedCsv = csvProviderAggregator.transform(csv);
-			writeCsvToFile(aggregatedCsv, OUTPUT_AGGREGATED_FILE_NAME + thresholds[i]);
+			
+			// round
+			final ICsvProvider<String> roundedCsv = csvProviderRound.transform(aggregatedCsv);
+			
+			writeCsvToFile(roundedCsv, OUTPUT_AGGREGATED_FILE_NAME + i);
+			
+			aggregatedCsvs.add(roundedCsv);
 			
 			++i;
 		}
+		writeCsvToFile(new CsvProviderPartition<>(aggregatedCsvs).toCsvProvider(), OUTPUT_AGGREGATED_FILE_NAME);
+	}
+	
+	private static CsvProviderRounding<String> getRounding() {
+		return new CsvProviderRounding<>(0);
 	}
 	
 	private static ICsvProviderTransformer<String> getOperationFilter() {
@@ -153,7 +168,7 @@ public final class PrepareOfflineCsv {
 		column2aggregation.put(TRANSITIONS_RETURN_INPUT, Aggregation.AVERAGE);
 		column2aggregation.put(TRANSITIONS_RETURN_OUTPUT, Aggregation.AVERAGE);
 		
-		return new CsvProviderAggregator<>(column2aggregation);
+		return new CsvProviderAggregator<>(column2aggregation, COUNT);
 	}
 	
 	private static void writeCsvToFile(final ICsvProvider<String> csv, final String fileName) {
@@ -163,7 +178,7 @@ public final class PrepareOfflineCsv {
 		}
 		final File file = new File(fileName + EXTENSION);
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
-		    writer.append(builder);
+			writer.append(builder);
 		} catch (final IOException e) {
 			System.err.println("Writing file " + fileName + " failed.");
 			e.printStackTrace();
