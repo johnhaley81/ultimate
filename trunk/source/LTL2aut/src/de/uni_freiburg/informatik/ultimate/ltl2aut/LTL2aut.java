@@ -27,13 +27,19 @@
  */
 package de.uni_freiburg.informatik.ultimate.ltl2aut;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.List; 
 
+import de.uni_freiburg.informatik.ultimate.core.lib.models.ObjectContainer;
 import de.uni_freiburg.informatik.ultimate.core.lib.results.CounterExampleResult;
 import de.uni_freiburg.informatik.ultimate.core.lib.results.ResultUtil;
 import de.uni_freiburg.informatik.ultimate.core.model.IGenerator;
+import de.uni_freiburg.informatik.ultimate.core.model.ISource;
 import de.uni_freiburg.informatik.ultimate.core.model.models.IElement;
 import de.uni_freiburg.informatik.ultimate.core.model.models.ModelType;
 import de.uni_freiburg.informatik.ultimate.core.model.observers.IObserver;
@@ -41,8 +47,9 @@ import de.uni_freiburg.informatik.ultimate.core.model.preferences.IPreferenceIni
 import de.uni_freiburg.informatik.ultimate.core.model.services.IToolchainStorage;
 import de.uni_freiburg.informatik.ultimate.core.model.services.IUltimateServiceProvider;
 import de.uni_freiburg.informatik.ultimate.ltl2aut.preferences.PreferenceInitializer;
+import de.uni_freiburg.informatik.ultimate.model.acsl.ACSLNode;
 
-public class LTL2aut implements IGenerator {
+public class LTL2aut implements IGenerator, ISource {
 
 	protected List<String> mFileNames;
 	private boolean mProcess;
@@ -52,15 +59,18 @@ public class LTL2aut implements IGenerator {
 	private LTL2autObserver mObserver;
 	private IUltimateServiceProvider mServices;
 	private IToolchainStorage mStorage;
+	private String[] mFileTypes;
 
 	public LTL2aut() {
 		mFileNames = new ArrayList<String>();
+		mFileTypes = new String[] { "ltl" };
 	}
 
 	@Override
 	public void init() {
 		mProcess = false;
 		mUseful = 0;
+		
 	}
 
 	@Override
@@ -156,6 +166,72 @@ public class LTL2aut implements IGenerator {
 			mServices.getLoggingService().getLogger(getPluginID())
 					.info("Another plugin discovered errors, skipping...");
 		}
+	}
+
+	@Override
+	public boolean parseable(File[] files) {
+		for (final File f : files) {
+			if (!parseable(f)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public boolean parseable(File file) {
+		for (final String s : getFileTypes()) {
+			if (file.getName().endsWith(s)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public IElement parseAST(File[] files) throws Exception {
+		return null;
+	}
+
+
+	@Override
+	//TODO: move to own class as formula format will change
+	public IElement parseAST(File file) throws Exception {
+		String line = null;
+		String ltlProperty = null;
+		mUseful++;
+		try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+			while ((line = br.readLine()) != null) {
+				if(line.startsWith("//@ ltl invariant")){
+					ltlProperty = line;
+					break;
+				}
+			}
+		} catch (final IOException e) {
+			line = null;
+			throw e;
+		}
+		if (ltlProperty == null){
+			throw new RuntimeException("LTL invariant file supplied but no LTL invariant found!");
+		}
+		
+		final StringBuilder input = new StringBuilder();
+		input.append("gstart");
+		input.append('\n');
+		input.append(ltlProperty.replaceFirst("//@", ""));
+		final ACSLNode node = de.uni_freiburg.informatik.ultimate.acsl.parser.Parser.parseComment(input.toString(), 0, 0);
+		
+		return new ObjectContainer<ACSLNode>(node);
+	}
+
+	@Override
+	public String[] getFileTypes() {
+		return mFileTypes;
+	}
+
+	@Override
+	public void setPreludeFile(File prelude) {
+		// TODO Auto-generated method stub
 	}
 
 }

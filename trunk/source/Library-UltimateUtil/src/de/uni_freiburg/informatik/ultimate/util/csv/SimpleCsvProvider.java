@@ -103,7 +103,10 @@ public class SimpleCsvProvider<T> implements ICsvProvider<T> {
 		for (final String s : mColumnTitles) {
 			sb.append(s).append(separator);
 		}
-		sb.replace(sb.length() - 2, sb.length(), "").append(lineSeparator);
+		if (sb.length() >= 2) {
+			sb.replace(sb.length() - 2, sb.length(), "");
+		}
+		sb.append(lineSeparator);
 		
 		for (int i = 0; i < mTable.size(); ++i) {
 			final List<T> row = mTable.get(i);
@@ -114,17 +117,19 @@ public class SimpleCsvProvider<T> implements ICsvProvider<T> {
 			}
 			
 			checkForSeparators(rowTitle, separator, lineSeparator);
-			sb.append(rowTitle).append(separator);
+			sb.append(rowTitle);
 			for (int j = 0; j < maxLength + 1 - rowTitle.length(); j++) {
 				sb.append(" ");
 			}
-			sb.append(rowTitle).append(separator);
 			for (final T value : row) {
 				final String cellString = String.valueOf(value);
 				checkForSeparators(cellString, separator, lineSeparator);
 				sb.append(cellString).append(", ");
 			}
-			sb.replace(sb.length() - 2, sb.length(), "").append(lineSeparator);
+			if (sb.length() >= 2) {
+				sb.replace(sb.length() - 2, sb.length(), "");
+			}
+			sb.append(lineSeparator);
 		}
 		
 		return sb.toString();
@@ -151,7 +156,10 @@ public class SimpleCsvProvider<T> implements ICsvProvider<T> {
 		for (final String s : mColumnTitles) {
 			sb.append(s).append(separator);
 		}
-		sb.replace(sb.length() - separator.length(), sb.length(), "").append(lineSeparator);
+		if (sb.length() >= separator.length()) {
+			sb.replace(sb.length() - separator.length(), sb.length(), "");
+		}
+		sb.append(lineSeparator);
 		
 		for (int i = 0; i < mTable.size(); ++i) {
 			final List<T> row = mTable.get(i);
@@ -171,7 +179,10 @@ public class SimpleCsvProvider<T> implements ICsvProvider<T> {
 				checkForSeparators(cellString, separator, lineSeparator);
 				sb.append(cellString).append(separator);
 			}
-			sb.replace(sb.length() - separator.length(), sb.length(), "").append(lineSeparator);
+			if (sb.length() >= separator.length()) {
+				sb.replace(sb.length() - separator.length(), sb.length(), "");
+			}
+			sb.append(lineSeparator);
 		}
 		
 		return sb;
